@@ -163,8 +163,7 @@ Valobot can show each player's **rank, RR, K/D/A, ACS, ADR and HS%** before and 
 
 **Flow:**
 1. At match time the bot posts a **before** snapshot (ranks).
-2. When you're done, press **📊 Résultats** under the session message (or `/valoresult`). Host and players only, 45 s cooldown.
-3. The bot lists the games you played together (solo games are ignored), per-player stats, rank change in RR, MVP and "boulet" of the night. Press it again after more games.
+2. When you're done, press **📊 Résultats** under the session message (or `/valoresult`). Host and players only, 45 s cooldown. Only **competitive** games are counted by default; use `/valoresult all:True` to include every mode.3. The bot lists the games you played together (solo games are ignored), per-player stats, rank change in RR, MVP and "boulet" of the night. Press it again after more games.
 
 Enable with `HENRIK_API_KEY` (see [Environment Variables](#environment-variables)). Without it, the feature is simply off.
 

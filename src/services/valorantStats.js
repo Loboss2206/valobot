@@ -113,6 +113,7 @@ async function getMatchesSince(profile, sinceMs) {
       matchId: String(match.metadata?.match_id || `${profile.name}${startedAt}`),
       startedAt,
       map: String(match.metadata?.map?.name || '?').slice(0, 30),
+      queueId: String(match.metadata?.queue?.id || '').toLowerCase(),
       queue: String(match.metadata?.queue?.name || match.metadata?.queue?.id || '').slice(0, 30),
       agent: String(me.agent?.name || '').slice(0, 30),
       won: typeof team?.won === 'boolean' ? team.won : null,

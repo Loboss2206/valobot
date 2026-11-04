@@ -125,7 +125,11 @@ const valounlinkCommand = new SlashCommandBuilder()
 // 6. /valoresult : post the stats recap of the latest finished party of this channel
 const valoresultCommand = new SlashCommandBuilder()
   .setName('valoresult')
-  .setDescription('Games are over? Post the rank & stats recap of the latest party in this channel')
+  .setDescription('Games are over? Post the rank & stats recap of the latest party (competitive only by default)')
+  .addBooleanOption(option => option
+    .setName('all')
+    .setDescription('Include all game modes (unrated, spike rush, etc.) instead of competitive only')
+    .setRequired(false))
   .setDMPermission(false);
 
 // Interactive Modal for the sender UI

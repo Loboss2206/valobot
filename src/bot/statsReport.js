@@ -79,6 +79,8 @@ async function captureBeforeStats(client, session) {
 }
 
 // ---------- AFTER: aggregation ----------
+const isCompetitive = (m) => m.queueId === 'competitive';
+
 function aggregate(matches) {
   const total = { games: matches.length, wins: 0, losses: 0, kills: 0, deaths: 0, assists: 0, rounds: 0, acsWeighted: 0, adrWeighted: 0, headshots: 0, shots: 0 };
   for (const m of matches) {
@@ -117,7 +119,7 @@ function selectSquadGames(perPlayerMatches) {
     .sort((a, b) => a[1].sample.startedAt - b[1].sample.startedAt);
 }
 
-async function buildResultEmbed(session) {
+async function buildResultEmbed(session, { allModes = false } = {}) {
   const stats = session.stats || { since: session.partyTimestamp - EARLY_START_MS, before: {}, players: sessionPlayerIds(session) };
   const playerIds = stats.players?.length ? stats.players : sessionPlayerIds(session);
   const linked = playerIds.map(id => ({ id, profile: profiles.getProfile(id) })).filter(p => p.profile);
@@ -126,7 +128,8 @@ async function buildResultEmbed(session) {
   const perPlayer = new Map();
   for (const { id, profile } of linked) {
     after.set(id, await valorantStats.getRank(profile, { fresh: true }).catch(err => { if (err.code === 'rate_limited') throw err; return null; }));
-    perPlayer.set(id, await valorantStats.getMatchesSince(profile, stats.since));
+    const matches = await valorantStats.getMatchesSince(profile, stats.since);
+    perPlayer.set(id, allModes ? matches : matches.filter(isCompetitive));
   }
 
   const games = selectSquadGames(perPlayer);
@@ -138,7 +141,7 @@ async function buildResultEmbed(session) {
     return embed.setDescription('Personne n\'a lié son compte Riot. Tapez `/valolink riot_id:Pseudo#TAG` puis relancez le bilan. « Sans données, pas de gloire. » 🕳️');
   }
   if (games.length === 0) {
-    return embed.setDescription('Aucune partie jouée ensemble détectée depuis le début de la session. Les parties mettent parfois une minute à apparaître : réessaie dans un instant. « Patience, jeune padawan. » 🧘');
+    return embed.setDescription(`Aucune partie ${allModes ? '' : 'compétitive '}jouée ensemble détectée depuis le début de la session.${allModes ? '' : ' Pour inclure les autres modes : \`/valoresult all:True\`.'} Les parties mettent parfois une minute à apparaître : réessaie dans un instant. « Patience, jeune padawan. » 🧘`);
   }
 
   const gameLines = games.slice(-10).map(([, g], i) => {
@@ -238,7 +241,8 @@ async function handleResultRequest(interaction, sessionIdFromButton = null) {
   session.stats.lastResultAt = Date.now();
   try {
     await interaction.deferReply();
-    const embed = await buildResultEmbed(session);
+    const allModes = interaction.isChatInputCommand?.() ? Boolean(interaction.options.getBoolean('all')) : false;
+    const embed = await buildResultEmbed(session, { allModes });
     sessionManager.persist();
     await interaction.editReply({ embeds: [embed], allowedMentions: NO_MENTIONS });
   } catch (err) {
