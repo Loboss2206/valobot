@@ -159,7 +159,6 @@ Valobot can show each player's **rank, RR, K/D/A, ACS, ADR and HS%** before and 
 
 **Linking (opt-in, nothing is guessed):**
 - `/valolink riot_id:Pseudo#TAG [region]` links your Riot ID (checked against the API). `/valounlink` deletes it.
-- `/valolink` with **no argument** gives you a one-click button: Discord asks you to authorize Valobot (scopes `identify` + `connections`), the bot reads the **Riot Games connection** of your Discord profile and links it. No dashboard login or session is created. (A bot can never read connections on its own: Discord only exposes them to an app the user authorized.)
 - Only linked players appear in recaps. Data stored: Discord ID, Riot ID, region (`data/profiles.json`).
 
 **Flow:**
@@ -299,7 +298,6 @@ Everything is configured at <https://discord.com/developers/applications> → yo
 |---|---|
 | **Inviting the bot** (OAuth2 → URL Generator) | `bot`, `applications.commands` |
 | **Web dashboard login** (requested automatically by the app) | `identify` (who you are), `guilds` (which servers you are in) |
-| **Riot link button** (`/valolink` with no argument) | `identify`, `connections` (your Riot Games connection only; nothing else is stored) |
 
 ### Bot permissions (channel)
 

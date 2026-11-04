@@ -254,6 +254,8 @@ function renderSessions() {
   emptyStateEl.style.display = 'none';
   sessionsListEl.innerHTML = '';
 
+  // Newest first
+  sessions.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   sessions.forEach(session => {
     const isCancelled = session.status === 'cancelled';
     const isLocked = session.status === 'locked' && (session.partyStartSent || Date.now() >= session.partyTimestamp);
@@ -822,11 +824,6 @@ function escapeHtml(str) {
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('login') === 'success') {
   showToast('🎮 Logged in with Discord successfully!');
-  window.history.replaceState({}, document.title, window.location.pathname);
-} else if (urlParams.get('riot')) {
-  showToast(urlParams.get('riot') === 'linked'
-    ? '✅ Compte Riot lié ! Tu apparaîtras dans les bilans.'
-    : 'Aucune connexion Riot Games trouvée sur ton profil Discord. Ajoute-la dans Paramètres → Connexions ou utilise /valolink riot_id:Pseudo#TAG.', urlParams.get('riot') === 'linked' ? 'success' : 'error');
   window.history.replaceState({}, document.title, window.location.pathname);
 } else if (urlParams.get('error')) {
   const loginErrors = {

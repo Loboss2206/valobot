@@ -5,8 +5,6 @@ const { buildSessionMessagePayload } = require('../bot/embedBuilder');
 const { renderSessionBanner } = require('../bot/stampRenderer');
 const phrases = require('../bot/phrases');
 const { resolveTargetMemberIds } = require('../bot/handlers');
-const profiles = require('../services/profiles');
-const valorantStats = require('../services/valorantStats');
 const {
   signToken,
   getSessionUser,
@@ -90,16 +88,6 @@ function createApiRouter(botClient, config = {}) {
     res.redirect(getDiscordOAuthUrl(clientId, redirectUri, state));
   });
 
-  // 1b. One-click Riot account link (scope: identify + connections only, no session is created)
-  router.get('/auth/riot', (req, res) => {
-    if (!clientId) {
-      return res.status(500).send('Login is not configured on this server.');
-    }
-    const state = `riot.${newOAuthState()}`;
-    res.setHeader('Set-Cookie', buildCookie('valobot_oauth_state', state, { maxAgeSeconds: 600, secure: secureCookies }));
-    res.redirect(getDiscordOAuthUrl(clientId, redirectUri, state, 'identify connections'));
-  });
-
   // 2. OAuth2 Callback
   router.get('/auth/callback', async (req, res) => {
     const code = req.query.code;
@@ -119,23 +107,6 @@ function createApiRouter(botClient, config = {}) {
     try {
       if (!clientSecret) {
         throw new Error('DISCORD_CLIENT_SECRET is missing from server configuration.');
-      }
-
-      // Riot link flow: read the Riot Games connection of the Discord profile, store it, no login
-      if (String(state).startsWith('riot.')) {
-        const { user: riotUser, riotId } = await exchangeOAuthCode(clientId, clientSecret, code, redirectUri);
-        res.setHeader('Set-Cookie', clearState);
-        const parsedRiot = profiles.parseRiotId(riotId);
-        if (!parsedRiot) return res.redirect('/?riot=none');
-
-        const existing = profiles.getProfile(riotUser.id);
-        const region = existing?.region || profiles.DEFAULT_REGION;
-        let puuid = null;
-        if (valorantStats.isConfigured()) {
-          puuid = await valorantStats.getRank({ ...parsedRiot, region }).then(r => r?.puuid || null).catch(() => null);
-        }
-        profiles.setProfile(riotUser.id, { ...parsedRiot, region, puuid, source: 'discord' });
-        return res.redirect('/?riot=linked');
       }
 
       const { user, userGuilds } = await exchangeOAuthCode(clientId, clientSecret, code, redirectUri);

@@ -1,4 +1,4 @@
-const { EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const sessionManager = require('../services/sessionManager');
 const profiles = require('../services/profiles');
 const valorantStats = require('../services/valorantStats');
@@ -253,22 +253,6 @@ async function handleResultRequest(interaction, sessionIdFromButton = null) {
 // ---------- /valolink and /valounlink ----------
 async function handleLinkCommand(interaction, config = {}) {
   const rawRiotId = interaction.options.getString('riot_id');
-
-  // No argument: send the one-click link that reads the Riot Games connection of the Discord profile
-  if (!rawRiotId) {
-    const base = (config.webBaseUrl || process.env.WEB_BASE_URL || '').replace(/\/$/, '');
-    if (!base.startsWith('http')) {
-      return interaction.reply({ content: '❌ Lien indisponible (`WEB_BASE_URL` non configurée). Utilise `/valolink riot_id:Pseudo#TAG`.', ephemeral: true });
-    }
-    return interaction.reply({
-      content: 'Clique pour lier ton compte **Riot Games** depuis ton profil Discord (une autorisation, rien d\'autre n\'est lu). ' +
-        'Pas de connexion Riot sur ton profil ? Ajoute-la dans *Paramètres → Connexions*, ou tape `/valolink riot_id:Pseudo#TAG`.',
-      components: [new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel('Lier mon compte Riot').setStyle(ButtonStyle.Link).setURL(`${base}/api/auth/riot`)
-      )],
-      ephemeral: true
-    });
-  }
 
   const parsed = profiles.parseRiotId(rawRiotId);
   if (!parsed) {

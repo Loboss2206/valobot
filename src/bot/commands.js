@@ -107,10 +107,10 @@ const regionChoices = [
 // 4. /valolink : link a Riot ID so rank & match stats can be reported
 const valolinkCommand = new SlashCommandBuilder()
   .setName('valolink')
-  .setDescription('Link your Riot account (no argument = one-click link from your Discord profile)')
+  .setDescription('Link your Riot account')
   .setDMPermission(false)
   .addStringOption(option =>
-    option.setName('riot_id').setDescription('Your Riot ID, e.g. Pseudo#TAG (leave empty to link from your Discord profile)').setRequired(false).setMaxLength(32)
+    option.setName('riot_id').setDescription('Your Riot ID, e.g. Pseudo#TAG').setRequired(true).setMaxLength(32)
   )
   .addStringOption(option =>
     option.setName('region').setDescription('Your Valorant region (default: server setting)').setRequired(false).addChoices(...regionChoices)

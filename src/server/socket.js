@@ -50,6 +50,7 @@ function setupWebSocket(server, { allowedOrigin } = {}) {
     ws.on('pong', () => { ws.isAlive = true; });
 
     const sessions = sessionManager.getAllSessions()
+      .sort((a, b) => b.createdAt - a.createdAt)
       .filter(s => canSee(ws, s))
       .map(s => sessionManager.toPublic(s));
     ws.send(JSON.stringify({ type: 'INIT', sessions }));

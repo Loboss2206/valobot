@@ -130,19 +130,6 @@ async function exchangeOAuthCode(clientId, clientSecret, code, redirectUri) {
   });
   const guilds = guildsRes.ok ? await guildsRes.json() : [];
 
-  // Riot account connected on the Discord profile (null if none / not shared)
-  let riotId = null;
-  try {
-    const connRes = await fetch('https://discord.com/api/users/@me/connections', {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (connRes.ok) {
-      const connections = await connRes.json();
-      const riot = Array.isArray(connections) ? connections.find(c => c.type === 'riotgames') : null;
-      if (riot && typeof riot.name === 'string') riotId = riot.name;
-    }
-  } catch {}
-
   return {
     user: {
       id: user.id,
@@ -150,7 +137,6 @@ async function exchangeOAuthCode(clientId, clientSecret, code, redirectUri) {
       globalName: user.global_name || user.username,
       avatar: user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : null
     },
-    riotId,
     userGuilds: guilds.map(g => ({
       id: g.id,
       name: g.name,
