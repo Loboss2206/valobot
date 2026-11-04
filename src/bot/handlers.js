@@ -7,7 +7,6 @@ const {
 } = require('discord.js');
 const sessionManager = require('../services/sessionManager');
 const { buildSessionMessagePayload } = require('./embedBuilder');
-const { buildCreateSessionModal } = require('./commands');
 const { sanitizeNote, safeName } = require('../server/auth');
 const phrases = require('./phrases');
 const { handleResultRequest } = require('./statsReport');
@@ -109,6 +108,10 @@ function parsePingSettingsInput(input = '') {
   return { pingTarget, reminderPrior };
 }
 
+const { buildCreateSessionModal } = require('./commands');
+
+const DEFAULT_PARTY_TIME = '21:00'; // used when /valo is run without party_time
+
 async function handleCommand(interaction, config = {}) {
   if (!interaction.inGuild()) {
     return interaction.reply({ content: '⛔ Cette commande ne marche que dans un serveur. « Pas en DM, frérot. »', ephemeral: true });
@@ -121,19 +124,18 @@ async function handleCommand(interaction, config = {}) {
       ephemeral: true
     });
   }
-  const partyTime = interaction.options.getString('party_time');
+  // Raw command with no argument at all: show the sender UI modal
+  if (interaction.options.data.length === 0) {
+    return interaction.showModal(buildCreateSessionModal());
+  }
+
+  const partyTime = interaction.options.getString('party_time') || DEFAULT_PARTY_TIME;
   const voteDeadline = interaction.options.getString('vote_deadline');
   const partySize = interaction.options.getInteger('party_size') || 5;
   const targetRole = interaction.options.getRole('target_role');
   const note = interaction.options.getString('note');
   const pingTarget = interaction.options.getString('ping_target') || 'everyone';
   const reminderPrior = interaction.options.getString('reminder_prior') || '30m';
-
-  // If no party_time provided, show the sender UI modal!
-  if (!partyTime) {
-    const modal = buildCreateSessionModal();
-    return interaction.showModal(modal);
-  }
 
   const parsedPartyDate = sessionManager.parseTimeString(partyTime);
   if (!parsedPartyDate) {
@@ -208,7 +210,7 @@ async function handleModalSubmit(interaction, config = {}) {
 
   await interaction.deferReply();
 
-  const partyTime = interaction.fields.getTextInputValue('input_party_time');
+  const partyTime = interaction.fields.getTextInputValue('input_party_time').trim() || DEFAULT_PARTY_TIME;
   const parsedPartyDate = sessionManager.parseTimeString(partyTime);
   if (!parsedPartyDate) {
     return interaction.editReply({

@@ -11,7 +11,7 @@ function createCommandOptions(builder) {
     .addStringOption(option =>
       option
         .setName('party_time')
-        .setDescription('Match start time (e.g. 21:00, in 1h, tomorrow 20:00, now)')
+        .setDescription('Match start time (e.g. 21:00, in 1h, tomorrow 20:00, now). Default: 21:00')
         .setRequired(false)
         .setAutocomplete(true)
     )
@@ -142,8 +142,8 @@ function buildCreateSessionModal() {
     .setCustomId('input_party_time')
     .setLabel('Match Start Time (e.g. 21:00 or in 1h)')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('21:00')
-    .setRequired(true);
+    .setPlaceholder('21:00 (default)')
+    .setRequired(false);
 
   const deadlineInput = new TextInputBuilder()
     .setCustomId('input_vote_deadline')
