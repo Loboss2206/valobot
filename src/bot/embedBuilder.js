@@ -6,6 +6,7 @@ const {
   AttachmentBuilder
 } = require('discord.js');
 const { renderSessionBanner } = require('./stampRenderer');
+const { embed: T, channel: C } = require('./phrases');
 
 // Embed field values are capped at 1024 chars: show as many mentions as fit, then "+N"
 function joinMentions(ids, prefix = '') {
@@ -23,7 +24,7 @@ function joinMentions(ids, prefix = '') {
     parts.push(item);
     length += item.length + 2;
   }
-  return parts.join(', ') || 'None';
+  return parts.join(', ') || T.none;
 }
 
 function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valobot.example.com') {
@@ -54,13 +55,13 @@ function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valob
 
   // Title
   if (isCancelled) {
-    embed.setTitle(`🚫 [ANNULÉ] SESSION VALORANT ${partySize}-STACK`);
+    embed.setTitle(T.titleCancelled(partySize));
   } else if (votingClosed) {
-    embed.setTitle(`🏁 [MATCH LANCÉ] SESSION VALORANT ${partySize}-STACK`);
+    embed.setTitle(T.titleStarted(partySize));
   } else if (isLocked) {
-    embed.setTitle(`⏳ [DEADLINE PASSÉE] SESSION VALORANT ${partySize}-STACK`);
+    embed.setTitle(T.titleLocked(partySize));
   } else {
-    embed.setTitle(`🎯 RECRUTEMENT VALORANT • [${partySize}-STACK]`);
+    embed.setTitle(T.titleOpen(partySize));
   }
 
   // Description
@@ -68,20 +69,19 @@ function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valob
     `<@&${session.targetRole.id}>` :
     '@everyone';
 
-  let desc = `**Cible :** ${roleMention} • **Organisé par :** <@${session.creator.id}>\n`;
-  desc += `**Mode / Note :** ${session.note || 'Competitive Stack'}\n`;
+  let desc = T.header(roleMention, session.creator.id, session.note || C.defaultNote);
 
   if (isCancelled) {
     if (session.cancelReason === 'not_enough_players') {
-      desc += `\n> ⚠️ **SESSION ANNULÉE AUTOMATIQUEMENT** : pas assez de joueurs au moment du match.\n> « Et c'est le drame. »\n`;
+      desc += T.cancelledAuto;
     } else {
-      const byUser = session.cancelledBy && /^\d+$/.test(session.cancelledBy.id) ? `<@${session.cancelledBy.id}>` : 'l\'hôte';
-      desc += `\n> ⚠️ **SESSION ANNULÉE** par ${byUser}.\n> « Et c'est le drame. » Les votes sont terminés.\n`;
+      const byUser = session.cancelledBy && /^\d+$/.test(session.cancelledBy.id) ? `<@${session.cancelledBy.id}>` : C.theHost;
+      desc += T.cancelledBy(byUser);
     }
   } else if (votingClosed) {
-    desc += `\n> 🏁 **Le match a commencé.** Les votes sont clos. « GG WP »\n`;
+    desc += T.started;
   } else if (isLocked) {
-    desc += `\n> ⏳ **Deadline dépassée**, mais les retardataires sont acceptés jusqu'au match. « Better late than never »\n`;
+    desc += T.locked;
   }
 
   embed.setDescription(desc);
@@ -89,18 +89,18 @@ function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valob
   // Time & Status fields
   embed.addFields(
     {
-      name: '⏰ Début du match',
-      value: `<t:${partyUnix}:t> (<t:${partyUnix}:R>)\n*(Hôte : ${session.partyTime})*`,
+      name: T.fieldStart,
+      value: `<t:${partyUnix}:t> (<t:${partyUnix}:R>)\n${T.hostSaid(session.partyTime)}`,
       inline: true
     },
     {
-      name: '⏳ Deadline des votes',
-      value: `<t:${deadlineUnix}:t> (<t:${deadlineUnix}:R>)\n*(Hôte : ${session.voteDeadline})*`,
+      name: T.fieldDeadline,
+      value: `<t:${deadlineUnix}:t> (<t:${deadlineUnix}:R>)\n${T.hostSaid(session.voteDeadline)}`,
       inline: true
     },
     {
-      name: '🛡️ Squad',
-      value: `**${roster.team1.length}/${partySize} en place**`,
+      name: T.fieldSquad,
+      value: T.squadValue(roster.team1.length, partySize),
       inline: true
     }
   );
@@ -113,15 +113,15 @@ function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valob
       const isCreator = member.userId === session.creator.id;
       const isFiller = member.status === 'if_last';
       const isBackup = member.status === 'backup';
-      const badge = isCreator ? ' *(Hôte)*' : (isFiller ? ' *(Bouche-trou)*' : (isBackup ? ' *(Remplaçant)*' : ''));
+      const badge = isCreator ? T.badgeHost : (isFiller ? T.badgeFiller : (isBackup ? T.badgeBackup : ''));
       team1Lines.push(`**${i + 1}.** 🟢 <@${member.userId}>${badge}`);
     } else {
-      team1Lines.push(`**${i + 1}.** ⚪ *[Place libre — « Il est où le ${i + 1}ème ? »]*`);
+      team1Lines.push(`**${i + 1}.** ⚪ ${T.freeSpotTeam1(i + 1)}`);
     }
   }
   embed.addFields({
-    name: `⚔️ ÉQUIPE 1 (${roster.team1.length}/${partySize})`,
-    value: team1Lines.join('\n') || '*Personne... « C\'est le désert »*',
+    name: T.team1Name(roster.team1.length, partySize),
+    value: team1Lines.join('\n') || T.team1Empty,
     inline: false
   });
 
@@ -133,11 +133,11 @@ function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valob
       if (member) {
         team2Lines.push(`**${i + 1}.** 🟢 <@${member.userId}>`);
       } else {
-        team2Lines.push(`**${i + 1}.** ⚪ *[Place libre]*`);
+        team2Lines.push(`**${i + 1}.** ⚪ ${T.freeSpot}`);
       }
     }
     embed.addFields({
-      name: `⚔️ ÉQUIPE 2 (${roster.team2.length}/${partySize})`,
+      name: T.team2Name(roster.team2.length, partySize),
       value: team2Lines.join('\n'),
       inline: false
     });
@@ -147,7 +147,7 @@ function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valob
   if (roster.backups && roster.backups.length > 0) {
     const backupValue = joinMentions(roster.backups.map(m => m.userId), '🟠 ');
     embed.addFields({
-      name: `🎒 Banc de touche (${roster.backups.length})`,
+      name: T.backups(roster.backups.length),
       value: backupValue,
       inline: true
     });
@@ -157,7 +157,7 @@ function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valob
   if (roster.maybes && roster.maybes.length > 0) {
     const maybeValue = joinMentions(roster.maybes.map(m => m.userId), '🟡 ');
     embed.addFields({
-      name: `🤔 Peut-être (${roster.maybes.length}) 🐇`,
+      name: T.maybes(roster.maybes.length),
       value: maybeValue,
       inline: true
     });
@@ -167,7 +167,7 @@ function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valob
   if (roster.ifLastUnassigned && roster.ifLastUnassigned.length > 0) {
     const ifLastValue = joinMentions(roster.ifLastUnassigned.map(m => m.userId), '🟣 ');
     embed.addFields({
-      name: `⚡ Si dernier recours (${roster.ifLastUnassigned.length})`,
+      name: T.ifLast(roster.ifLastUnassigned.length),
       value: ifLastValue,
       inline: true
     });
@@ -177,7 +177,7 @@ function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valob
   if (roster.declined && roster.declined.length > 0) {
     const noValue = joinMentions(roster.declined.map(m => m.userId), '🔴 ');
     embed.addFields({
-      name: `❌ Indispo / Lâches (${roster.declined.length})`,
+      name: T.declined(roster.declined.length),
       value: noValue,
       inline: true
     });
@@ -187,14 +187,14 @@ function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valob
   if (roster.unresponsive && roster.unresponsive.length > 0) {
     const shown = joinMentions(roster.unresponsive);
     embed.addFields({
-      name: `👻 Aux abonnés absents (${roster.unresponsive.length})`,
+      name: T.unresponsive(roster.unresponsive.length),
       value: shown,
       inline: false
     });
   }
 
   embed.setFooter({
-    text: `Session ID: ${session.id} • Valobot by Nytuo`
+    text: T.footer(session.id)
   });
   embed.setTimestamp(new Date(session.createdAt));
 
@@ -205,31 +205,31 @@ function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valob
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`vote_sure_${session.id}`)
-      .setLabel("Je suis chaud")
+      .setLabel(T.btnSure)
       .setStyle(ButtonStyle.Success)
       .setEmoji('🔥')
       .setDisabled(votingClosed),
     new ButtonBuilder()
       .setCustomId(`vote_maybe_${session.id}`)
-      .setLabel('Je tente (peut-être)')
+      .setLabel(T.btnMaybe)
       .setStyle(ButtonStyle.Secondary)
       .setEmoji('🤞')
       .setDisabled(votingClosed),
     new ButtonBuilder()
       .setCustomId(`vote_if_last_${session.id}`)
-      .setLabel('Si dernier recours')
+      .setLabel(T.btnIfLast)
       .setStyle(ButtonStyle.Primary)
       .setEmoji('🦸')
       .setDisabled(votingClosed),
     new ButtonBuilder()
       .setCustomId(`vote_backup_${session.id}`)
-      .setLabel('Remplaçant')
+      .setLabel(T.btnBackup)
       .setStyle(ButtonStyle.Secondary)
       .setEmoji('🎒')
       .setDisabled(votingClosed),
     new ButtonBuilder()
       .setCustomId(`vote_no_${session.id}`)
-      .setLabel('Nan, flemme')
+      .setLabel(T.btnNo)
       .setStyle(ButtonStyle.Danger)
       .setEmoji('🏃')
       .setDisabled(votingClosed)
@@ -240,25 +240,25 @@ function buildSessionMessagePayload(session, roster, webBaseUrl = 'https://valob
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`vote_remove_${session.id}`)
-      .setLabel('Effacer mon vote')
+      .setLabel(T.btnRemove)
       .setStyle(ButtonStyle.Secondary)
       .setEmoji('🗑️')
       .setDisabled(votingClosed),
     new ButtonBuilder()
       .setCustomId(`cancel_session_${session.id}`)
-      .setLabel(isCancelled ? 'Annulé' : 'Annuler')
+      .setLabel(isCancelled ? T.btnCancelled : T.btnCancel)
       .setStyle(ButtonStyle.Danger)
       .setEmoji('🙅')
       .setDisabled(isCancelled),
     ...(statsEnabled ? [
       new ButtonBuilder()
         .setCustomId(`result_${session.id}`)
-        .setLabel('Résultats')
+        .setLabel(T.btnResults)
         .setStyle(ButtonStyle.Primary)
         .setEmoji('📊')
     ] : []),
     new ButtonBuilder()
-      .setLabel('Dashboard web')
+      .setLabel(T.btnDashboard)
       .setStyle(ButtonStyle.Link)
       .setURL(`${webBaseUrl.replace(/\/$/, '')}/#session-${session.id}`)
       .setEmoji('🌐')

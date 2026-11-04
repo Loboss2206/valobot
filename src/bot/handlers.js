@@ -114,13 +114,13 @@ const DEFAULT_PARTY_TIME = '21:00'; // used when /valo is run without party_time
 
 async function handleCommand(interaction, config = {}) {
   if (!interaction.inGuild()) {
-    return interaction.reply({ content: '⛔ Cette commande ne marche que dans un serveur. « Pas en DM, frérot. »', ephemeral: true });
+    return interaction.reply({ content: phrases.msg.guildOnly, ephemeral: true });
   }
   if (!isChannelAllowed(interaction.channelId)) {
     const list = process.env.ALLOWED_CHANNEL_IDS.split(',').map(s => s.trim()).filter(Boolean);
     const mentions = list.map(id => `<#${id}>`).join(', ');
     return interaction.reply({
-      content: `⛔ **Channel Restricted:** Valobot commands are locked to ${mentions} on this server.`,
+      content: phrases.msg.channelRestricted(mentions),
       ephemeral: true
     });
   }
@@ -140,7 +140,7 @@ async function handleCommand(interaction, config = {}) {
   const parsedPartyDate = sessionManager.parseTimeString(partyTime);
   if (!parsedPartyDate) {
     return interaction.reply({
-      content: `❌ **Invalid Match Time:** \`${partyTime}\` could not be recognized.\n💡 **Allowed examples:** \`21:00\`, \`in 30m\`, \`in 1h\`, \`tomorrow 20:30\`, \`now\`, or pick from the autocomplete suggestions.`,
+      content: phrases.msg.invalidTime(partyTime, true),
       ephemeral: true
     });
   }
@@ -178,9 +178,7 @@ async function handleCommand(interaction, config = {}) {
     const { pingText, allowedMentions } = resolvePing(interaction, pingTarget, targetRole);
     payload.allowedMentions = allowedMentions;
 
-    payload.content = pingText
-      ? `🎮 **ÇA RECRUTE POUR VALO !** ${pingText}\n${phrases.pick(phrases.recruitment)}`
-      : `🎮 **ÇA RECRUTE POUR VALO !** *(Notifs : ${pingTarget === 'only_on_time' ? 'juste à l\'heure H' : 'silencieux, mode ninja'})*\n${phrases.pick(phrases.recruitment)}`;
+    payload.content = `${pingText ? phrases.channel.recruitHeaderPing(pingText) : phrases.channel.recruitHeaderSilent(pingTarget)}\n${phrases.pick(phrases.recruitment)}`;
 
     const message = await interaction.editReply(payload);
     session.messageId = message.id;
@@ -191,7 +189,7 @@ async function handleCommand(interaction, config = {}) {
   } catch (err) {
     console.error('Error handling command:', err);
     await interaction.editReply({
-      content: `❌ Impossible de créer la session : ${/^(Tu as déjà|L'heure du match)/.test(err.message) ? err.message : 'erreur interne.'}`
+      content: phrases.msg.createFailed(/^(Tu as déjà|L'heure du match)/.test(err.message) ? err.message : phrases.msg.internalError)
     });
   }
 }
@@ -199,11 +197,11 @@ async function handleCommand(interaction, config = {}) {
 async function handleModalSubmit(interaction, config = {}) {
   if (interaction.customId !== 'modal_create_session') return;
   if (!interaction.inGuild()) {
-    return interaction.reply({ content: '⛔ Cette commande ne marche que dans un serveur.', ephemeral: true });
+    return interaction.reply({ content: phrases.msg.guildOnlyShort, ephemeral: true });
   }
   if (!isChannelAllowed(interaction.channelId)) {
     return interaction.reply({
-      content: '⛔ **Channel Restricted:** Valobot votes cannot be launched in this channel.',
+      content: phrases.msg.channelRestrictedModal,
       ephemeral: true
     });
   }
@@ -214,13 +212,13 @@ async function handleModalSubmit(interaction, config = {}) {
   const parsedPartyDate = sessionManager.parseTimeString(partyTime);
   if (!parsedPartyDate) {
     return interaction.editReply({
-      content: `❌ **Invalid Match Time:** \`${partyTime}\` could not be recognized.\n💡 **Allowed examples:** \`21:00\`, \`in 30m\`, \`in 1h\`, \`tomorrow 20:30\`, \`now\`.`
+      content: phrases.msg.invalidTime(partyTime)
     });
   }
   const voteDeadline = interaction.fields.getTextInputValue('input_vote_deadline') || null;
   const partySizeRaw = interaction.fields.getTextInputValue('input_party_size') || '5';
   const partySize = [2, 3, 5].includes(Number(partySizeRaw)) ? Number(partySizeRaw) : 5;
-  const note = interaction.fields.getTextInputValue('input_note') || 'Valorant Stack';
+  const note = interaction.fields.getTextInputValue('input_note') || phrases.channel.defaultNoteModal;
   let rawPingSettings = '';
   try {
     rawPingSettings = interaction.fields.getTextInputValue('input_ping_settings') || '';
@@ -256,9 +254,7 @@ async function handleModalSubmit(interaction, config = {}) {
     const { pingText, allowedMentions } = resolvePing(interaction, pingTarget, null);
     payload.allowedMentions = allowedMentions;
 
-    payload.content = pingText
-      ? `🎮 **ÇA RECRUTE POUR VALO !** ${pingText}\n${phrases.pick(phrases.recruitment)}`
-      : `🎮 **ÇA RECRUTE POUR VALO !** *(Notifs : ${pingTarget === 'only_on_time' ? 'juste à l\'heure H' : 'silencieux, mode ninja'})*\n${phrases.pick(phrases.recruitment)}`;
+    payload.content = `${pingText ? phrases.channel.recruitHeaderPing(pingText) : phrases.channel.recruitHeaderSilent(pingTarget)}\n${phrases.pick(phrases.recruitment)}`;
 
     const message = await interaction.editReply(payload);
     session.messageId = message.id;
@@ -269,7 +265,7 @@ async function handleModalSubmit(interaction, config = {}) {
   } catch (err) {
     console.error('Error handling modal:', err);
     await interaction.editReply({
-      content: `❌ Impossible de lancer la session : ${/^(Tu as déjà|L'heure du match)/.test(err.message) ? err.message : 'erreur interne.'}`
+      content: phrases.msg.launchFailed(/^(Tu as déjà|L'heure du match)/.test(err.message) ? err.message : phrases.msg.internalError)
     });
   }
 }
@@ -297,27 +293,27 @@ async function handleButton(interaction, config = {}) {
     const session = sessionManager.getSession(sessionId);
     if (!session) {
       return interaction.reply({
-        content: '⚠️ Session not found or expired.',
+        content: phrases.msg.sessionNotFound,
         ephemeral: true
       });
     }
 
     if (session.status === 'cancelled') {
       return interaction.reply({
-        content: '🚫 Session annulée. Plus personne ne vote, « circulez y\'a rien à voir ».',
+        content: phrases.msg.voteOnCancelled,
         ephemeral: true
       });
     }
 
     if (!sessionManager.isVotingOpen(session)) {
       return interaction.reply({
-        content: '🔒 Le match a déjà commencé, trop tard ! « You snooze, you lose » 😴',
+        content: phrases.msg.votingClosed,
         ephemeral: true
       });
     }
 
     if (!interaction.inGuild() || (session.guildId && session.guildId !== interaction.guildId)) {
-      return interaction.reply({ content: '⛔ Cette session appartient à un autre serveur.', ephemeral: true });
+      return interaction.reply({ content: phrases.msg.otherGuild, ephemeral: true });
     }
 
     const userObj = {
@@ -341,7 +337,7 @@ async function handleButton(interaction, config = {}) {
 
       // 3. Ephemeral acknowledgment to the user
       await interaction.reply({
-        content: `✅ Vote enregistré : ${phrases.voteAck[voteType] || voteType}`,
+        content: phrases.msg.voteRecorded(phrases.voteAck[voteType] || voteType),
         ephemeral: true
       });
 
@@ -355,7 +351,7 @@ async function handleButton(interaction, config = {}) {
       console.error('Error casting vote:', err);
       if (!interaction.replied) {
         await interaction.reply({
-          content: `❌ Impossible d'enregistrer ton vote : ${err.message}`,
+          content: phrases.msg.voteFailed(err.message),
           ephemeral: true
         });
       }
@@ -370,14 +366,14 @@ async function handleButton(interaction, config = {}) {
 
     if (!session) {
       return interaction.reply({
-        content: '⚠️ Session not found.',
+        content: phrases.msg.sessionNotFoundShort,
         ephemeral: true
       });
     }
 
     if (session.status === 'cancelled') {
       return interaction.reply({
-        content: 'ℹ️ This session has already been cancelled.',
+        content: phrases.msg.alreadyCancelled,
         ephemeral: true
       });
     }
@@ -389,7 +385,7 @@ async function handleButton(interaction, config = {}) {
 
     if (!isCreator && !isAdmin) {
       return interaction.reply({
-        content: `⛔ Nope ! Seul <@${session.creator.id}> ou un admin peut annuler. « You shall not pass » 🧙`,
+        content: phrases.msg.cancelNotAllowed(session.creator.id),
         ephemeral: true
       });
     }
@@ -406,7 +402,7 @@ async function handleButton(interaction, config = {}) {
       });
 
       await interaction.reply({
-        content: '🛑 **Session annulée !** Le tampon CANCELLED est posé. « Et c\'est le drame » 🎭',
+        content: phrases.msg.cancelDone,
         ephemeral: true
       });
 
@@ -416,7 +412,7 @@ async function handleButton(interaction, config = {}) {
       console.error('Error cancelling session:', err);
       if (!interaction.replied) {
         await interaction.reply({
-          content: `❌ Could not cancel session: ${err.message}`,
+          content: phrases.msg.cancelFailed(err.message),
           ephemeral: true
         });
       }
@@ -446,8 +442,8 @@ async function updateDiscordMessage(client, session, config = {}, targetMessage 
 
     if (session.status === 'cancelled') {
       payload.content = session.cancelReason === 'not_enough_players'
-        ? '🛑 **Session annulée** : pas assez de joueurs. « Et c\'est le drame » 🎭'
-        : phrases.pick(phrases.cancelled).replace('{who}', /^\d+$/.test(session.cancelledBy?.id || '') ? `<@${session.cancelledBy.id}>` : 'l\'hôte');
+        ? phrases.channel.cancelledNotEnough
+        : phrases.pick(phrases.cancelled).replace('{who}', /^\d+$/.test(session.cancelledBy?.id || '') ? `<@${session.cancelledBy.id}>` : phrases.channel.theHost);
     } else if (session.status === 'locked') {
       payload.content = lockedContent(session, roster);
     }
@@ -465,7 +461,7 @@ async function updateDiscordMessage(client, session, config = {}, targetMessage 
 
 function lockedContent(session, roster) {
   if (session.partyStartSent || Date.now() >= session.partyTimestamp) {
-    return `🏁 **MATCH LANCÉ** — les votes sont clos. « GG WP » 🤝`;
+    return phrases.channel.matchStarted;
   }
   const mentions = roster.team1.map(m => `<@${m.userId}>`).join(' ');
   return `${phrases.pick(phrases.locked)}\n${phrases.pick(phrases.lockedSquad).replace('{mentions}', mentions)}`;
@@ -495,7 +491,7 @@ async function doRepost(client, session, config, joiner, oldMessage) {
 
     const roster = sessionManager.calculateRosters(session);
     const payload = buildSessionMessagePayload(session, roster, config.webBaseUrl);
-    const name = joiner ? `**${safeName(joiner.displayName || joiner.username)}**` : 'Un joueur';
+    const name = joiner ? `**${safeName(joiner.displayName || joiner.username)}**` : phrases.channel.aPlayer;
     payload.content = session.status === 'locked'
       ? lockedContent(session, roster)
       : phrases.pick(phrases.joined).replace('{name}', name);
@@ -597,7 +593,7 @@ async function sendChannelReminder(client, session, config = {}) {
     const lockedCount = roster.team1.length;
 
     const reminderMins = session.reminderPrior ? parseInt(session.reminderPrior, 10) || 30 : 30;
-    const reminderLabel = reminderMins >= 60 ? `${Math.floor(reminderMins / 60)} hour(s)` : `${reminderMins} minutes`;
+    const reminderLabel = reminderMins >= 60 ? phrases.channel.reminderLabelHours(Math.floor(reminderMins / 60)) : phrases.channel.reminderLabelMinutes(reminderMins);
 
     const messageUrl = (session.guildId && session.channelId && session.messageId) ?
       `https://discord.com/channels/${session.guildId}/${session.channelId}/${session.messageId}` :
@@ -606,15 +602,15 @@ async function sendChannelReminder(client, session, config = {}) {
     const meme = pickMeme('reminder', reminderMemeUrls);
     const embed = new EmbedBuilder()
       .setColor(0xff4655)
-      .setTitle(`⏰ MATCH DANS ${reminderLabel.toUpperCase()} — ON ATTEND TA RÉPONSE`)
-      .setDescription(
-        `${phrases.pick(phrases.reminders).replace('{label}', reminderLabel)}\n` +
-        `La session **"${session.note || 'Competitive Stack'}"** démarre <t:${partyUnix}:R> !\n\n` +
-        `🛡️ **Squad actuelle :** **${lockedCount}/${partySize}**\n` +
-        `⏰ **Début du match :** <t:${partyUnix}:t> (<t:${partyUnix}:F>)\n\n` +
-        `Vote maintenant, « on n'est pas des animaux » 🐒`
-      )
-      .setFooter({ text: `Valobot • Rappel automatique ${reminderLabel} avant le match` });
+      .setTitle(phrases.channel.reminderTitle(reminderLabel))
+      .setDescription(phrases.channel.reminderDescription(
+        phrases.pick(phrases.reminders).replace('{label}', reminderLabel),
+        session.note || phrases.channel.defaultNote,
+        partyUnix,
+        lockedCount,
+        partySize
+      ))
+      .setFooter({ text: phrases.channel.reminderFooter(reminderLabel) });
 
     if (meme.file) embed.setImage(`attachment://${meme.file.name}`);
     else if (meme.imageUrl) embed.setImage(meme.imageUrl);
@@ -623,7 +619,7 @@ async function sendChannelReminder(client, session, config = {}) {
     if (messageUrl) {
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setLabel('👉 Aller voter, feignasse')
+          .setLabel(phrases.channel.reminderButton)
           .setStyle(ButtonStyle.Link)
           .setURL(messageUrl)
       );
@@ -669,17 +665,17 @@ async function sendPartyStartResult(client, session) {
     await channel.send({
       files: meme.file ? [meme.file] : [],
       allowedMentions: { parse: [], users: roster.team1.map(member => member.userId) },
-      content: `💀 **FLOP DU MATCH** — seulement ${roster.team1.length}/${partySize} joueur(s) présent(s) à l'heure prévue. ${mentions}${meme.linkUrl ? `\n${meme.linkUrl}` : ''}`.trim(),
+      content: `${phrases.channel.flopContent(roster.team1.length, partySize, mentions)}${meme.linkUrl ? `\n${meme.linkUrl}` : ''}`.trim(),
       embeds: [
         new EmbedBuilder()
           .setColor(0x2b141a)
           .setTitle(phrases.pick(phrases.flopTitles))
           .setDescription(
-            `La partie **${session.note || 'Competitive Stack'}** devait commencer maintenant.\n` +
+            `${phrases.channel.flopDescription(session.note || phrases.channel.defaultNote)}\n` +
             phrases.pick(phrases.flopLines).replace('{n}', roster.team1.length).replace('{size}', partySize)
           )
           .setImage(meme.file ? `attachment://${meme.file.name}` : (meme.imageUrl || null))
-          .setFooter({ text: 'Valobot • Match flop' })
+          .setFooter({ text: phrases.channel.flopFooter })
       ]
     });
     console.log(`💀 [Match Start] Sent flop meme for session ${session.id}: ${roster.team1.length}/${partySize}.`);

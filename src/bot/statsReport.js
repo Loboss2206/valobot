@@ -3,12 +3,13 @@ const sessionManager = require('../services/sessionManager');
 const profiles = require('../services/profiles');
 const valorantStats = require('../services/valorantStats');
 const phrases = require('./phrases');
+const S = phrases.stats;
 const { safeName } = require('../server/auth');
 
 const EARLY_START_MS = 5 * 60 * 1000; // games launched a bit before the planned time still count
 const RESULT_COOLDOWN_MS = 45 * 1000;
 const NO_MENTIONS = { parse: [] };
-const FOOTER = 'Valobot • Données HenrikDev API • Non affilié à Riot Games';
+const FOOTER = S.footer;
 
 const inFlight = new Set();
 
@@ -19,12 +20,12 @@ function sessionPlayerIds(session) {
 
 const rankLine = (rank) => rank
   ? `**${safeName(rank.tier)}**${rank.rr !== null ? ` (${rank.rr} RR)` : ''}`
-  : '*rang inconnu*';
+  : S.unknownRank;
 
 function statsErrorText(err) {
-  if (err?.code === 'rate_limited') return 'Trop de requêtes vers l\'API de stats, réessaie dans une minute. « Doucement sur le clic » 🐢';
-  if (err?.code === 'unauthorized') return 'La clé API de stats est invalide ou absente (admin du bot : vérifie `HENRIK_API_KEY`).';
-  return 'L\'API de stats ne répond pas pour le moment. « Ça arrive aux meilleurs. » 🔧';
+  if (err?.code === 'rate_limited') return S.errRateLimited;
+  if (err?.code === 'unauthorized') return S.errUnauthorized;
+  return S.errUnavailable;
 }
 
 // ---------- BEFORE: snapshot taken when the match time is reached ----------
@@ -41,7 +42,7 @@ async function captureBeforeStats(client, session) {
     for (const userId of playerIds) {
       const profile = profiles.getProfile(userId);
       if (!profile) {
-        lines.push(`<@${userId}> — 🔗 pas lié (\`/valolink\`)`);
+        lines.push(S.notLinked(userId));
         continue;
       }
       let rank = null;
@@ -64,11 +65,11 @@ async function captureBeforeStats(client, session) {
       embeds: [
         new EmbedBuilder()
           .setColor(0x00f59b)
-          .setTitle('📊 Avant la partie : état des lieux')
+          .setTitle(S.beforeTitle)
           .setDescription(`${phrases.pick(phrases.statsBefore)}\n\n${lines.join('\n')}`)
           .addFields({
-            name: 'Quand c\'est fini',
-            value: 'Clique sur **📊 Résultats** sous le message de la session (ou tape `/valoresult`). Plusieurs parties dans la soirée ? Le bilan les additionne toutes.'
+            name: S.whenDoneName,
+            value: S.whenDoneValue
           })
           .setFooter({ text: FOOTER })
       ]
@@ -135,13 +136,13 @@ async function buildResultEmbed(session, { allModes = false } = {}) {
   const games = selectSquadGames(perPlayer);
   const gameIds = new Set(games.map(([matchId]) => matchId));
 
-  const embed = new EmbedBuilder().setColor(0xff4655).setTitle('🏁 Bilan de la soirée').setFooter({ text: FOOTER });
+  const embed = new EmbedBuilder().setColor(0xff4655).setTitle(S.resultTitle).setFooter({ text: FOOTER });
 
   if (linked.length === 0) {
-    return embed.setDescription('Personne n\'a lié son compte Riot. Tapez `/valolink riot_id:Pseudo#TAG` puis relancez le bilan. « Sans données, pas de gloire. » 🕳️');
+    return embed.setDescription(S.nobodyLinked);
   }
   if (games.length === 0) {
-    return embed.setDescription(`Aucune partie ${allModes ? '' : 'compétitive '}jouée ensemble détectée depuis le début de la session.${allModes ? '' : ' Pour inclure les autres modes : \`/valoresult all:True\`.'} Les parties mettent parfois une minute à apparaître : réessaie dans un instant. « Patience, jeune padawan. » 🧘`);
+    return embed.setDescription(S.noGames(allModes));
   }
 
   const gameLines = games.slice(-10).map(([, g], i) => {
@@ -149,7 +150,7 @@ async function buildResultEmbed(session, { allModes = false } = {}) {
     const icon = m.won === true ? '✅' : (m.won === false ? '❌' : '🤝');
     return `**${i + 1}.** 🗺️ ${safeName(m.map)} · ${icon} ${m.score || ''} ${m.queue ? `· ${safeName(m.queue)}` : ''}`.trim();
   });
-  embed.addFields({ name: `🎮 Parties jouées (${games.length})`, value: gameLines.join('\n').slice(0, 1024) });
+  embed.addFields({ name: S.gamesPlayed(games.length), value: gameLines.join('\n').slice(0, 1024) });
 
   const summaries = [];
   for (const { id, profile } of linked) {
@@ -158,18 +159,20 @@ async function buildResultEmbed(session, { allModes = false } = {}) {
     const rankBefore = stats.before?.[id] || null;
     const rankAfter = after.get(id) || null;
 
-    let rankText = rankAfter ? rankLine(rankAfter) : '*rang inconnu*';
+    let rankText = rankAfter ? rankLine(rankAfter) : S.unknownRank;
     if (rankBefore && rankAfter) {
       const delta = rankBefore.elo !== null && rankAfter.elo !== null ? rankAfter.elo - rankBefore.elo : null;
       rankText = `${rankLine(rankBefore)} → ${rankLine(rankAfter)}${delta !== null ? ` · **${delta >= 0 ? '+' : ''}${delta} RR**` : ''}`;
     }
 
     const value = agg.games === 0
-      ? `Rang : ${rankText}\n*Pas de partie avec l'escouade.*`
-      : `Rang : ${rankText}\n` +
-        `Parties : **${agg.games}** (${agg.wins}V-${agg.losses}D)\n` +
-        `K/D/A : **${agg.kills}/${agg.deaths}/${agg.assists}** · KDA **${agg.kda}**\n` +
-        `ACS moy. : **${agg.acs}** · ADR **${agg.adr}** · HS **${agg.hs}%**`;
+      ? `${S.rankLabel(rankText)}\n${S.noSquadGame}`
+      : [
+        S.rankLabel(rankText),
+        S.gamesLine(agg.games, agg.wins, agg.losses),
+        S.kdaLine(agg.kills, agg.deaths, agg.assists, agg.kda),
+        S.avgLine(agg.acs, agg.adr, agg.hs)
+      ].join('\n');
 
     embed.addFields({ name: `🎯 ${safeName(profiles.riotLabel(profile))}`, value: value.slice(0, 1024) });
     if (agg.games > 0) summaries.push({ id, agg });
@@ -189,7 +192,7 @@ async function buildResultEmbed(session, { allModes = false } = {}) {
 
   const unlinked = playerIds.length - linked.length;
   if (unlinked > 0) {
-    embed.addFields({ name: '🔗 Pas de stats pour', value: `${unlinked} joueur(s) sans compte lié. Utilise \`/valolink\` pour apparaître dans le prochain bilan.` });
+    embed.addFields({ name: S.noStatsFor, value: S.noStatsForValue(unlinked) });
   }
   return embed;
 }
@@ -203,10 +206,10 @@ function canRequestResults(interaction, session) {
 
 async function handleResultRequest(interaction, sessionIdFromButton = null) {
   if (!interaction.inGuild()) {
-    return interaction.reply({ content: '⛔ Seulement dans un serveur.', ephemeral: true });
+    return interaction.reply({ content: S.guildOnly, ephemeral: true });
   }
   if (!valorantStats.isConfigured()) {
-    return interaction.reply({ content: '📊 Les stats ne sont pas activées sur ce bot (`HENRIK_API_KEY` manquante).', ephemeral: true });
+    return interaction.reply({ content: S.notEnabled, ephemeral: true });
   }
 
   let session = sessionIdFromButton ? sessionManager.getSession(sessionIdFromButton) : null;
@@ -219,22 +222,22 @@ async function handleResultRequest(interaction, sessionIdFromButton = null) {
   }
 
   if (!session || session.guildId !== interaction.guildId) {
-    return interaction.reply({ content: '🤷 Aucune session terminée trouvée ici. Le bilan est dispo une fois l\'heure du match passée.', ephemeral: true });
+    return interaction.reply({ content: S.noSession, ephemeral: true });
   }
   if (session.status === 'cancelled') {
-    return interaction.reply({ content: '🚫 Session annulée, pas de bilan à faire.', ephemeral: true });
+    return interaction.reply({ content: S.sessionCancelled, ephemeral: true });
   }
   if (!session.partyStartSent) {
-    return interaction.reply({ content: '⏳ Le match n\'a pas encore commencé. Reviens quand c\'est fini !', ephemeral: true });
+    return interaction.reply({ content: S.notStarted, ephemeral: true });
   }
   if (!canRequestResults(interaction, session)) {
-    return interaction.reply({ content: '⛔ Seuls l\'hôte et les joueurs de la session peuvent demander le bilan.', ephemeral: true });
+    return interaction.reply({ content: S.notAllowed, ephemeral: true });
   }
 
   session.stats = session.stats || { startedAt: Date.now(), since: session.partyTimestamp - EARLY_START_MS, players: sessionPlayerIds(session), before: {}, lastResultAt: 0 };
   const wait = session.stats.lastResultAt + RESULT_COOLDOWN_MS - Date.now();
   if (inFlight.has(session.id) || wait > 0) {
-    return interaction.reply({ content: `🐢 Un bilan vient d'être demandé, patiente ${Math.max(5, Math.ceil(wait / 1000))}s.`, ephemeral: true });
+    return interaction.reply({ content: S.cooldown(Math.max(5, Math.ceil(wait / 1000))), ephemeral: true });
   }
 
   inFlight.add(session.id);
@@ -248,7 +251,7 @@ async function handleResultRequest(interaction, sessionIdFromButton = null) {
   } catch (err) {
     console.error(`❌ [Stats] Result report failed for ${session.id}:`, err.code || err.message);
     session.stats.lastResultAt = 0; // let them retry right away
-    await interaction.editReply({ content: `❌ ${statsErrorText(err)}`, embeds: [] }).catch(() => {});
+    await interaction.editReply({ content: S.failed(statsErrorText(err)), embeds: [] }).catch(() => {});
   } finally {
     inFlight.delete(session.id);
   }
@@ -260,7 +263,7 @@ async function handleLinkCommand(interaction, config = {}) {
 
   const parsed = profiles.parseRiotId(rawRiotId);
   if (!parsed) {
-    return interaction.reply({ content: '❌ Riot ID invalide. Format attendu : `Pseudo#TAG` (ex. `Nytuo#EUW`). « Il manque le #, chef. »', ephemeral: true });
+    return interaction.reply({ content: S.invalidRiotId, ephemeral: true });
   }
   const region = interaction.options.getString('region') || profiles.DEFAULT_REGION;
   await interaction.deferReply({ ephemeral: true });
@@ -270,25 +273,22 @@ async function handleLinkCommand(interaction, config = {}) {
     try {
       const rank = await valorantStats.getRank({ ...parsed, region }, { fresh: true });
       if (!rank) {
-        return interaction.editReply(`❌ Compte **${safeName(parsed.name)}#${parsed.tag}** introuvable en région \`${region}\`. Vérifie l'orthographe et la région.`);
+        return interaction.editReply(S.accountNotFound(safeName(parsed.name), parsed.tag, region));
       }
       puuid = rank.puuid;
     } catch (err) {
-      return interaction.editReply(`❌ ${statsErrorText(err)}`);
+      return interaction.editReply(S.failed(statsErrorText(err)));
     }
   }
 
   const profile = profiles.setProfile(interaction.user.id, { ...parsed, region, puuid, source: 'manual' });
-  return interaction.editReply(
-    `✅ Compte lié : **${safeName(profiles.riotLabel(profile))}** (\`${region}\`). Tu apparaîtras dans les bilans de tes parties.\n` +
-    `Profil : ${profiles.trackerUrl(profile)}\n*Retire-toi quand tu veux avec \`/valounlink\`.*`
-  );
+  return interaction.editReply(S.linked(safeName(profiles.riotLabel(profile)), region, profiles.trackerUrl(profile)));
 }
 
 async function handleUnlinkCommand(interaction) {
   const removed = profiles.removeProfile(interaction.user.id);
   return interaction.reply({
-    content: removed ? '🗑️ Compte Riot délié, tes données sont supprimées. « Parti sans laisser d\'adresse. »' : 'ℹ️ Aucun compte lié.',
+    content: removed ? S.unlinked : S.notLinkedInfo,
     ephemeral: true
   });
 }
