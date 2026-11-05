@@ -201,6 +201,8 @@ const stats = {
   gamesLine: (g, w, l) => `Parties : **${g}** (${w}V-${l}D)`,
   kdaLine: (k, d, a, kda) => `K/D/A : **${k}/${d}/${a}** · KDA **${kda}**`,
   avgLine: (acs, adr, hs) => `ACS moy. : **${acs}** · ADR **${adr}** · HS **${hs}%**`,
+  agentsField: "🎭 Agents joués",
+  agentsValue: "Un portrait par partie, dans l'ordre. Bordure verte = victoire, rouge = défaite.",
   noStatsFor: "🔗 Pas de stats pour",
   noStatsForValue: (n) => `${n} joueur(s) sans compte lié. Utilise \`/valolink\` pour apparaître dans le prochain bilan.`,
   guildOnly: "⛔ Seulement dans un serveur.",

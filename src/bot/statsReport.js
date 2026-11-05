@@ -1,4 +1,5 @@
-const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder, PermissionFlagsBits } = require('discord.js');
+const { renderAgentsImage } = require('./agentsImage');
 const sessionManager = require('../services/sessionManager');
 const profiles = require('../services/profiles');
 const valorantStats = require('../services/valorantStats');
@@ -139,10 +140,10 @@ async function buildResultEmbed(session, { allModes = false } = {}) {
   const embed = new EmbedBuilder().setColor(0xff4655).setTitle(S.resultTitle).setFooter({ text: FOOTER });
 
   if (linked.length === 0) {
-    return embed.setDescription(S.nobodyLinked);
+    return { embed: embed.setDescription(S.nobodyLinked), files: [] };
   }
   if (games.length === 0) {
-    return embed.setDescription(S.noGames(allModes));
+    return { embed: embed.setDescription(S.noGames(allModes)), files: [] };
   }
 
   const gameLines = games.slice(-10).map(([, g], i) => {
@@ -153,6 +154,7 @@ async function buildResultEmbed(session, { allModes = false } = {}) {
   embed.addFields({ name: S.gamesPlayed(games.length), value: gameLines.join('\n').slice(0, 1024) });
 
   const summaries = [];
+  const agentRows = [];
   for (const { id, profile } of linked) {
     const mine = (perPlayer.get(id) || []).filter(m => gameIds.has(m.matchId));
     const agg = aggregate(mine);
@@ -175,7 +177,13 @@ async function buildResultEmbed(session, { allModes = false } = {}) {
       ].join('\n');
 
     embed.addFields({ name: `🎯 ${safeName(profiles.riotLabel(profile))}`, value: value.slice(0, 1024) });
-    if (agg.games > 0) summaries.push({ id, agg });
+    if (agg.games > 0) {
+      summaries.push({ id, agg });
+      agentRows.push({
+        label: profiles.riotLabel(profile),
+        games: [...mine].sort((a, b) => a.startedAt - b.startedAt).map(m => ({ iconUrl: m.agentIcon, agent: m.agent, won: m.won }))
+      });
+    }
   }
 
   if (summaries.length >= 2) {
@@ -194,7 +202,19 @@ async function buildResultEmbed(session, { allModes = false } = {}) {
   if (unlinked > 0) {
     embed.addFields({ name: S.noStatsFor, value: S.noStatsForValue(unlinked) });
   }
-  return embed;
+  // Agents played by each player, stacked inline at the very end
+  const files = [];
+  try {
+    const png = await renderAgentsImage(agentRows);
+    if (png) {
+      files.push(new AttachmentBuilder(png, { name: 'agents.png' }));
+      embed.addFields({ name: S.agentsField, value: S.agentsValue });
+      embed.setImage('attachment://agents.png');
+    }
+  } catch (err) {
+    console.warn('⚠️ [Stats] Could not render agents image:', err.message);
+  }
+  return { embed, files };
 }
 
 // ---------- AFTER: entry point (button + /valoresult) ----------
@@ -245,9 +265,9 @@ async function handleResultRequest(interaction, sessionIdFromButton = null) {
   try {
     await interaction.deferReply();
     const allModes = interaction.isChatInputCommand?.() ? Boolean(interaction.options.getBoolean('all')) : false;
-    const embed = await buildResultEmbed(session, { allModes });
+    const { embed, files } = await buildResultEmbed(session, { allModes });
     sessionManager.persist();
-    await interaction.editReply({ embeds: [embed], allowedMentions: NO_MENTIONS });
+    await interaction.editReply({ embeds: [embed], files, allowedMentions: NO_MENTIONS });
   } catch (err) {
     console.error(`❌ [Stats] Result report failed for ${session.id}:`, err.code || err.message);
     session.stats.lastResultAt = 0; // let them retry right away

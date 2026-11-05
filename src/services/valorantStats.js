@@ -116,6 +116,9 @@ async function getMatchesSince(profile, sinceMs) {
       queueId: String(match.metadata?.queue?.id || '').toLowerCase(),
       queue: String(match.metadata?.queue?.name || match.metadata?.queue?.id || '').slice(0, 30),
       agent: String(me.agent?.name || '').slice(0, 30),
+      agentIcon: /^[0-9a-f-]{36}$/i.test(String(me.agent?.id || ''))
+        ? `https://media.valorant-api.com/agents/${me.agent.id}/displayicon.png`
+        : null,
       won: typeof team?.won === 'boolean' ? team.won : null,
       score: team?.rounds ? `${num(team.rounds.won)}-${num(team.rounds.lost)}` : null,
       kills: num(stats.kills),
