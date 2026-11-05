@@ -4,7 +4,7 @@ const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const ICON = 64;
 const GAP = 8;
 const ROW_H = ICON + 24;
-const LABEL_W = 210;
+const LABEL_W = 240;
 const PAD = 16;
 const FETCH_TIMEOUT_MS = 6000;
 const FONT = '"DejaVu Sans", "Liberation Sans", "Noto Sans", Arial, sans-serif';
@@ -61,7 +61,7 @@ async function renderAgentsImage(rows) {
     ctx.fillRect(0, y - 4, width, ROW_H);
 
     ctx.fillStyle = '#ece8e1';
-    ctx.font = `bold 18px ${FONT}`;
+    ctx.font = `bold 14px ${FONT}`;
     ctx.textBaseline = 'middle';
     ctx.fillText(fitText(ctx, label, LABEL_W - 12), PAD, y + ICON / 2);
 

@@ -60,13 +60,13 @@ function createCommandOptions(builder) {
     .addStringOption(option =>
       option
         .setName('reminder_prior')
-        .setDescription('When to ping unresponsive users before match (Default: 30m prior)')
+        .setDescription('When to ping unresponsive users before match (Default: 15m prior)')
         .setRequired(false)
         .addChoices(
-          { name: '30m (30 minutes before match - Default)', value: '30m' },
+          { name: '15m (15 minutes before match - Default)', value: '15m' },
           { name: '5m (5 minutes before match)', value: '5m' },
           { name: '10m (10 minutes before match)', value: '10m' },
-          { name: '15m (15 minutes before match)', value: '15m' },
+          { name: '30m (30 minutes before match)', value: '30m' },
           { name: '45m (45 minutes before match)', value: '45m' },
           { name: '1h (1 hour before match)', value: '1h' },
           { name: 'Disabled (No reminder ping)', value: 'off' }
@@ -169,10 +169,10 @@ function buildCreateSessionModal() {
 
   const pingSettingsInput = new TextInputBuilder()
     .setCustomId('input_ping_settings')
-    .setLabel('Ping: everyone, role, only on time | 30m')
+    .setLabel('Ping: everyone, role, only on time | 15m')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('everyone, 30m (or: only on time, 15m, off)')
-    .setValue('everyone, 30m')
+    .setPlaceholder('everyone, 15m (or: only on time, 30m, off)')
+    .setValue('everyone, 15m')
     .setRequired(false);
 
   modal.addComponents(

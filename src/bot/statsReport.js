@@ -180,7 +180,7 @@ async function buildResultEmbed(session, { allModes = false } = {}) {
     if (agg.games > 0) {
       summaries.push({ id, agg });
       agentRows.push({
-        label: profiles.riotLabel(profile),
+        label: profile.name,
         games: [...mine].sort((a, b) => a.startedAt - b.startedAt).map(m => ({ iconUrl: m.agentIcon, agent: m.agent, won: m.won }))
       });
     }

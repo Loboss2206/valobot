@@ -80,11 +80,11 @@ function isChannelAllowed(channelId) {
   return list.length === 0 || list.includes(channelId);
 }
 
-// Parse free-form ping settings from modal (e.g. "everyone, 30m", "only on time, 15m", "role, off", "none")
+// Parse free-form ping settings from modal (e.g. "everyone, 15m", "only on time, 15m", "role, off", "none")
 function parsePingSettingsInput(input = '') {
   const text = String(input).toLowerCase().trim();
   let pingTarget = 'everyone';
-  let reminderPrior = '30m';
+  let reminderPrior = '15m';
 
   if (text.includes('only on time') || text.includes('ontime') || text.includes('on time')) {
     pingTarget = 'only_on_time';
@@ -135,7 +135,7 @@ async function handleCommand(interaction, config = {}) {
   const targetRole = interaction.options.getRole('target_role');
   const note = interaction.options.getString('note');
   const pingTarget = interaction.options.getString('ping_target') || 'everyone';
-  const reminderPrior = interaction.options.getString('reminder_prior') || '30m';
+  const reminderPrior = interaction.options.getString('reminder_prior') || '15m';
 
   const parsedPartyDate = sessionManager.parseTimeString(partyTime);
   if (!parsedPartyDate) {
@@ -592,7 +592,12 @@ async function sendChannelReminder(client, session, config = {}) {
     const partySize = session.partySize || 5;
     const lockedCount = roster.team1.length;
 
-    const reminderMins = session.reminderPrior ? parseInt(session.reminderPrior, 10) || 30 : 30;
+    if (lockedCount >= partySize) {
+      console.log(`ℹ️ [Reminder] Full stack detected (${lockedCount}/${partySize}) for session ${session.id}; skipping reminder ping.`);
+      return;
+    }
+
+    const reminderMins = session.reminderPrior ? parseInt(session.reminderPrior, 10) || 15 : 15;
     const reminderLabel = reminderMins >= 60 ? phrases.channel.reminderLabelHours(Math.floor(reminderMins / 60)) : phrases.channel.reminderLabelMinutes(reminderMins);
 
     const messageUrl = (session.guildId && session.channelId && session.messageId) ?
@@ -640,9 +645,9 @@ async function sendChannelReminder(client, session, config = {}) {
       });
     }
 
-    console.log(`📢 [Discord Bot] Pinged ${unresponsiveIds.length} unresponsive user(s) 30m prior to session ${session.id}`);
+    console.log(`📢 [Discord Bot] Pinged ${unresponsiveIds.length} unresponsive user(s) ${reminderMins}m prior to session ${session.id}`);
   } catch (err) {
-    console.error(`❌ [Discord Bot] Failed to send 30m reminder for session ${session.id}:`, err);
+    console.error(`❌ [Discord Bot] Failed to send ${session.reminderPrior || '15m'} reminder for session ${session.id}:`, err);
   }
 }
 

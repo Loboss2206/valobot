@@ -412,7 +412,7 @@ function createApiRouter(botClient, config = {}) {
       };
 
       const pingTarget = PING_TARGETS.includes(body.pingTarget) ? body.pingTarget : 'everyone';
-      const reminderPrior = REMINDER_PRIORS.includes(body.reminderPrior) ? body.reminderPrior : '30m';
+      const reminderPrior = REMINDER_PRIORS.includes(body.reminderPrior) ? body.reminderPrior : '15m';
 
       const session = sessionManager.createSession({
         guildId,
