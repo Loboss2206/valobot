@@ -732,7 +732,7 @@ createSessionForm.addEventListener('submit', async (e) => {
   const targetRoleName = targetRoleId ? (roleSelectEl.options[roleSelectEl.selectedIndex]?.text || '@everyone') : 'Channel';
   const note = document.getElementById('noteInput').value.trim();
   const pingTarget = document.getElementById('pingTargetSelect')?.value || 'everyone';
-  const reminderPrior = document.getElementById('reminderPriorSelect')?.value || '30m';
+  const reminderPrior = document.getElementById('reminderPriorSelect')?.value || '15m';
 
   try {
     const res = await fetch('/api/sessions', {

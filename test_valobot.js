@@ -184,7 +184,7 @@ console.log('✅ Test 9 passed: Unlogged web votes rejected and purged');
   assert.strictEqual(reminderFired, true, 'Reminder event should fire');
   assert.strictEqual(reminderSession.reminderSent, true, 'reminderSent flag should be set');
 
-  console.log('✅ Test 10 passed: 30m prior reminder and unresponsive user detection verified');
+  console.log('✅ Test 10 passed: Reminder and unresponsive user detection verified');
 
   // Test 11: Customizable ping target and reminder prior settings
   console.log('\nTest 11: Testing customizable ping target and reminder prior...');
@@ -205,7 +205,7 @@ console.log('✅ Test 9 passed: Unlogged web votes rejected and purged');
 
   const opt4 = parsePingSettingsInput('');
   assert.strictEqual(opt4.pingTarget, 'everyone');
-  assert.strictEqual(opt4.reminderPrior, '30m');
+  assert.strictEqual(opt4.reminderPrior, '15m');
 
   // Test session creation with custom pingTarget and reminderPrior
   const customSession = sessionManager.createSession({

@@ -26,9 +26,9 @@ const DAYS_OF_WEEK = {
   saturday: 6, sat: 6, samedi: 6
 };
 
-// Helper to parse reminder prior strings (e.g. "30m", "15m", "1h", "off") into minutes
+// Helper to parse reminder prior strings (e.g. "15m", "30m", "1h", "off") into minutes
 function parseReminderMinutes(str) {
-  if (!str) return 30;
+  if (!str) return 15;
   str = String(str).toLowerCase().trim();
   if (['off', 'none', 'false', '0', 'disabled'].includes(str)) return 0;
   const match = str.match(/^(\d+)\s*(m|min|mins|h|hr|hours)?$/i);
@@ -37,7 +37,7 @@ function parseReminderMinutes(str) {
     const unit = match[2] ? match[2].toLowerCase() : 'm';
     return unit.startsWith('h') ? val * 60 : val;
   }
-  return 30;
+  return 15;
 }
 
 const MAX_ADVANCE_MS = 14 * 24 * 60 * 60 * 1000; // matches must start within 14 days (setTimeout limit is ~24.8 days)
@@ -271,7 +271,7 @@ class SessionManager extends EventEmitter {
       reminderSent: Boolean(options.reminderSent),
       partyStartSent: Boolean(options.partyStartSent),
       pingTarget: PING_TARGETS.includes(options.pingTarget) ? options.pingTarget : 'everyone',
-      reminderPrior: REMINDER_PRIORS.includes(options.reminderPrior) ? options.reminderPrior : '30m',
+      reminderPrior: REMINDER_PRIORS.includes(options.reminderPrior) ? options.reminderPrior : '15m',
       votes: {},
       history: []
     };
