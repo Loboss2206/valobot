@@ -124,12 +124,10 @@ const channel = {
   reminderTitle: (label) => `⏰ MATCH DANS ${label.toUpperCase()} — ON ATTEND TA RÉPONSE`,
   reminderLabelHours: (h) => `${h} hour(s)`,
   reminderLabelMinutes: (m) => `${m} minutes`,
-  reminderDescription: (intro, note, partyUnix, locked, size) =>
-    `${intro}\n` +
+  reminderDescription: (note, partyUnix, locked, size) =>
     `La session **"${note}"** démarre <t:${partyUnix}:R> !\n\n` +
     `🛡️ **Squad actuelle :** **${locked}/${size}**\n` +
-    `⏰ **Début du match :** <t:${partyUnix}:t> (<t:${partyUnix}:F>)\n\n` +
-    `Vote maintenant, « on n'est pas des animaux » 🐒`,
+    `⏰ **Début du match :** <t:${partyUnix}:t> (<t:${partyUnix}:F>)`,
   reminderFooter: (label) => `Valobot • Rappel automatique ${label} avant le match`,
   reminderButton: "👉 Aller voter, feignasse",
   flopContent: (n, size, mentions) => `💀 **FLOP DU MATCH** — seulement ${n}/${size} joueur(s) présent(s) à l'heure prévue. ${mentions}`,

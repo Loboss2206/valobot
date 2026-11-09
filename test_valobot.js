@@ -175,6 +175,15 @@ console.log('✅ Test 9 passed: Unlogged web votes rejected and purged');
   assert.ok(unresponsive.includes('user_c'), 'user_c should be unresponsive');
   assert.ok(unresponsive.includes('user_d'), 'user_d should be unresponsive');
 
+  const roleReminderSession = {
+    ...reminderSession,
+    guildId: 'guild_1',
+    targetRole: { id: 'target_role' },
+    targetMemberIds: ['user_b', 'user_c']
+  };
+  const roleUnresponsive = await getUnresponsiveChannelMembers(mockClient, roleReminderSession, mockChannel);
+  assert.deepStrictEqual(roleUnresponsive.sort(), ['user_b', 'user_c'], 'Reminder should only include unresponsive members of the target role');
+
   // Test reminder event triggering
   let reminderFired = false;
   sessionManager.once('sessionReminder', (s) => {
@@ -189,6 +198,7 @@ console.log('✅ Test 9 passed: Unlogged web votes rejected and purged');
   // Test 11: Customizable ping target and reminder prior settings
   console.log('\nTest 11: Testing customizable ping target and reminder prior...');
   const { parsePingSettingsInput } = require('./src/bot/handlers');
+  const phrases = require('./src/bot/phrases');
 
   // Test modal input parsing
   const opt1 = parsePingSettingsInput('only on time, 15m');
@@ -204,8 +214,13 @@ console.log('✅ Test 9 passed: Unlogged web votes rejected and purged');
   assert.strictEqual(opt3.reminderPrior, 'off');
 
   const opt4 = parsePingSettingsInput('');
-  assert.strictEqual(opt4.pingTarget, 'everyone');
+  assert.strictEqual(opt4.pingTarget, 'role');
   assert.strictEqual(opt4.reminderPrior, '15m');
+
+  const reminderDescription = phrases.channel.reminderDescription('Competitive 5-Stack', 1794231600, 2, 5);
+  assert.ok(reminderDescription.startsWith('La session **"Competitive 5-Stack"**'), 'Reminder should start with the session details');
+  assert.ok(!reminderDescription.includes('Vote maintenant'), 'Reminder should omit the extra voting phrase');
+  assert.ok(!reminderDescription.includes('Ton « j’arrive »'), 'Reminder should omit the random intro');
 
   // Test session creation with custom pingTarget and reminderPrior
   const customSession = sessionManager.createSession({
@@ -217,6 +232,13 @@ console.log('✅ Test 9 passed: Unlogged web votes rejected and purged');
   });
   assert.strictEqual(customSession.pingTarget, 'only_on_time');
   assert.strictEqual(customSession.reminderPrior, '15m');
+
+  const defaultPingSession = sessionManager.createSession({
+    creator: { id: 'default_ping_host', username: 'DefaultPingHost' },
+    partySize: 5,
+    partyTime: 'in 3h'
+  });
+  assert.strictEqual(defaultPingSession.pingTarget, 'role', 'Default ping target should be the target role');
 
   // Test session with disabled reminder (off)
   const silentSession = sessionManager.createSession({

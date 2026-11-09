@@ -83,7 +83,7 @@ function isChannelAllowed(channelId) {
 // Parse free-form ping settings from modal (e.g. "everyone, 15m", "only on time, 15m", "role, off", "none")
 function parsePingSettingsInput(input = '') {
   const text = String(input).toLowerCase().trim();
-  let pingTarget = 'everyone';
+  let pingTarget = 'role';
   let reminderPrior = '15m';
 
   if (text.includes('only on time') || text.includes('ontime') || text.includes('on time')) {
@@ -134,7 +134,7 @@ async function handleCommand(interaction, config = {}) {
   const partySize = interaction.options.getInteger('party_size') || 5;
   const targetRole = interaction.options.getRole('target_role');
   const note = interaction.options.getString('note');
-  const pingTarget = interaction.options.getString('ping_target') || 'everyone';
+  const pingTarget = interaction.options.getString('ping_target') || 'role';
   const reminderPrior = interaction.options.getString('reminder_prior') || '15m';
 
   const parsedPartyDate = sessionManager.parseTimeString(partyTime);
@@ -521,11 +521,13 @@ async function getUnresponsiveChannelMembers(client, session, channel = null) {
     if (!channel || !channel.isTextBased()) return [];
 
     const candidateUserIds = new Set();
+    const targetRoleId = session.targetRole?.id;
+    const hasSpecificTargetRole = targetRoleId && targetRoleId !== 'everyone' && targetRoleId !== session.guildId;
 
     // 0. Fresh list of everyone who can see the channel
     if (channel.guild) {
-      const fresh = await resolveTargetMemberIds(channel.guild, channel, session.targetRole?.id);
-      if (fresh.length > 0) session.targetMemberIds = fresh;
+      const fresh = await resolveTargetMemberIds(channel.guild, channel, targetRoleId);
+      if (fresh.length > 0 || hasSpecificTargetRole) session.targetMemberIds = fresh;
     }
 
     // 1. Target members if saved during creation (e.g. role members or channel members)
@@ -536,7 +538,7 @@ async function getUnresponsiveChannelMembers(client, session, channel = null) {
     }
 
     // 2. Members with permission to view this channel (from cache)
-    if (channel.members) {
+    if (!hasSpecificTargetRole && channel.members) {
       for (const [memberId, member] of channel.members) {
         if (!member.user?.bot) {
           candidateUserIds.add(memberId);
@@ -546,6 +548,7 @@ async function getUnresponsiveChannelMembers(client, session, channel = null) {
 
     // 3. Scan recent channel messages to catch active human members
     try {
+      if (hasSpecificTargetRole) throw new Error('Target role members are already scoped');
       const recent = await channel.messages.fetch({ limit: 50 }).catch(() => null);
       if (recent) {
         for (const msg of recent.values()) {
@@ -609,13 +612,11 @@ async function sendChannelReminder(client, session, config = {}) {
       .setColor(0xff4655)
       .setTitle(phrases.channel.reminderTitle(reminderLabel))
       .setDescription(phrases.channel.reminderDescription(
-        phrases.pick(phrases.reminders).replace('{label}', reminderLabel),
         session.note || phrases.channel.defaultNote,
         partyUnix,
         lockedCount,
         partySize
-      ))
-      .setFooter({ text: phrases.channel.reminderFooter(reminderLabel) });
+      ));
 
     if (meme.file) embed.setImage(`attachment://${meme.file.name}`);
     else if (meme.imageUrl) embed.setImage(meme.imageUrl);
@@ -667,21 +668,16 @@ async function sendPartyStartResult(client, session) {
 
     const mentions = roster.team1.map(member => `<@${member.userId}>`).join(' ');
     const meme = pickMeme('flop', flopMemeUrls);
+    const flopEmbeds = meme.file || meme.imageUrl ? [
+      new EmbedBuilder()
+        .setColor(0x2b141a)
+        .setImage(meme.file ? `attachment://${meme.file.name}` : meme.imageUrl)
+    ] : [];
     await channel.send({
       files: meme.file ? [meme.file] : [],
       allowedMentions: { parse: [], users: roster.team1.map(member => member.userId) },
       content: `${phrases.channel.flopContent(roster.team1.length, partySize, mentions)}${meme.linkUrl ? `\n${meme.linkUrl}` : ''}`.trim(),
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0x2b141a)
-          .setTitle(phrases.pick(phrases.flopTitles))
-          .setDescription(
-            `${phrases.channel.flopDescription(session.note || phrases.channel.defaultNote)}\n` +
-            phrases.pick(phrases.flopLines).replace('{n}', roster.team1.length).replace('{size}', partySize)
-          )
-          .setImage(meme.file ? `attachment://${meme.file.name}` : (meme.imageUrl || null))
-          .setFooter({ text: phrases.channel.flopFooter })
-      ]
+      embeds: flopEmbeds
     });
     console.log(`💀 [Match Start] Sent flop meme for session ${session.id}: ${roster.team1.length}/${partySize}.`);
   } catch (err) {

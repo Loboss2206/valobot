@@ -270,7 +270,7 @@ class SessionManager extends EventEmitter {
       cancelledAt: null,
       reminderSent: Boolean(options.reminderSent),
       partyStartSent: Boolean(options.partyStartSent),
-      pingTarget: PING_TARGETS.includes(options.pingTarget) ? options.pingTarget : 'everyone',
+      pingTarget: PING_TARGETS.includes(options.pingTarget) ? options.pingTarget : 'role',
       reminderPrior: REMINDER_PRIORS.includes(options.reminderPrior) ? options.reminderPrior : '15m',
       votes: {},
       history: []
