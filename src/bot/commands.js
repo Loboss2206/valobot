@@ -48,11 +48,11 @@ function createCommandOptions(builder) {
     .addStringOption(option =>
       option
         .setName('ping_target')
-        .setDescription('Who to ping: everyone, role, only on time, or silent (Default: everyone)')
+        .setDescription('Who to ping: everyone, role, only on time, or silent (Default: target role)')
         .setRequired(false)
         .addChoices(
+          { name: 'Target Role only (Default)', value: 'role' },
           { name: '@everyone (Ping all channel members)', value: 'everyone' },
-          { name: 'Target Role only', value: 'role' },
           { name: 'Only on time (No initial ping, notify prior to match)', value: 'only_on_time' },
           { name: 'Silent (No pings at all)', value: 'none' }
         )
